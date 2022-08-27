@@ -1,0 +1,72 @@
+<!dOcTyPe html>
+<META Charset=utf-8>
+<TITLE>Topic Feed</TITLE>
+<STYLE>
+body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
+</STYLE>
+<H1>Topic Feed</H1>
+<NAV><DL></DL></NAV>
+<SCRIPT Type=module>
+const nav = document.body.querySelector("nav")
+const dl = nav.querySelector("dl")
+const parser = new DOMParser
+fetch(`${location}.jsonld`)
+.then($ => $.json())
+.then(meta => {
+  const topic = meta.subject || meta["@id"].split("/").pop()
+  document.title = topic
+  document.body.querySelector("h1").textContent = "subject" in meta
+  ? `#${topic}`
+  : `@${topic}`
+  if (meta.first != location) {
+    const a = nav
+    .insertBefore(document.createElement("p"), dl)
+    .appendChild(document.createElement("a"))
+    a.href = meta.first
+    a.textContent = "First Page" }
+  if (meta.prev && meta.prev != meta.first) {
+    const a = nav
+    .insertBefore(document.createElement("p"), dl)
+    .appendChild(document.createElement("a"))
+    a.href = meta.prev
+    a.textContent = "Previous Page" }
+  let prevDate = undefined
+  for (const status of meta.items) {
+    if (status.created != prevDate) dl.appendChild(document.createElement("dt")).textContent = status.created
+    const a = dl
+    .appendChild(document.createElement("dd"))
+    .appendChild(document.createElement("a"))
+    a.href = status["@id"]
+    const summaryText = (() => {
+      try {
+        const d = parser.parseFromString(status.content, "application/xhtml+xml")
+        const div = document.createElement("div")
+        div.appendChild(document.importNode(d.documentElement, true))
+        Object.assign(div.style,
+          { position: "absolute"
+          , top: "-2px"
+          , height: "1px"
+          , width: "1px"
+          , overflow: "hidden" })
+        document.body.appendChild(div)
+        const text = div.innerText
+        document.body.removeChild(div)
+        return text }
+      catch { } })() || "";
+    const chars = Array.from(summaryText.trim().replaceAll(/\s+/gu, " "))
+    a.textContent = chars.length > 28
+    ? "".concat(...chars.slice(0, 27), "…")
+    : summaryText || status.identifier }
+  if (meta.next && meta.next != meta.current) {
+    const a = nav
+    .appendChild(document.createElement("p"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.next
+    a.textContent = "Next Page" }
+  if (meta.current != location) {
+    const a = nav
+    .appendChild(document.createElement("p"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.current
+    a.textContent = "Latest Page" } })
+</SCRIPT>

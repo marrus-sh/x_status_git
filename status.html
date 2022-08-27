@@ -1,0 +1,94 @@
+<!dOcTyPe hTmL>
+<HTML Lang=en>
+<TITLE>Status</TITLE>
+<STYLE>
+body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
+article{ Font-Size: Larger }
+footer{ Border-Block-Start: Thin Solid; Padding-Block: 1REM; Text-Align: End }
+footer p{ Margin-Block: 0 .5REM }
+footer time:Not([datetime]),
+footer small{ Font-Size: Inherit; Font-Style: Italic }
+</STYLE>
+<BODY>
+<SCRIPT Type=module>
+const parser = new DOMParser
+fetch(`${new URL(".", location).toString().slice(0, -1)}.jsonld`)
+.then($ => $.json())
+.then(meta => {
+  const { items } = meta
+  const n = items.findIndex($ => new URL($["@id"]).pathname === location.pathname)
+  const status = items[n]
+  const src = status.content
+  const { documentElement: article } = parser.parseFromString(src, "application/xhtml+xml")
+  const { creator, created } = status
+  document.title = creator
+  ? `Status by ${creator.name} @ ${status.created}`
+  : `Status @ ${created}`
+  const footer = document.createElement("footer")
+  const authorshipP = footer.appendChild(document.createElement("p"))
+  if (creator) {
+    const authorLink = authorshipP.appendChild(document.createElement("a"))
+    authorLink.href = creator["@id"]
+    authorLink.textContent = creator.name
+    authorshipP.appendChild(document.createTextNode(" @ ")) }
+  authorshipP.appendChild(document.createElement("time")).textContent = created
+  footer
+  .appendChild(document.createElement("p"))
+  .appendChild(document.createElement("small"))
+  .textContent = status.identifier
+  const nav = footer.appendChild(document.createElement("nav"))
+  nav.appendChild(document.createTextNode("Up: "))
+  const upLink = nav.appendChild(document.createElement("a"))
+  upLink.href = meta["@id"]
+  upLink.textContent = meta.subject || meta["@id"].split("/").pop()
+  if (n > 0) {
+    nav.appendChild(document.createTextNode("; Previous: "))
+    const prevLink = nav.appendChild(document.createElement("a"))
+    prevLink.href = items[n - 1]["@id"]
+    const prevText = (() => {
+      try {
+        const prevD = parser.parseFromString(items[n - 1].content, "application/xhtml+xml")
+        const div = document.createElement("div")
+        div.appendChild(document.importNode(prevD.documentElement, true))
+        Object.assign(div.style,
+          { position: "absolute"
+          , top: "-2px"
+          , height: "1px"
+          , width: "1px"
+          , overflow: "hidden" })
+        document.body.appendChild(div)
+        const text = div.innerText
+        document.body.removeChild(div)
+        return text }
+      catch { } })() ?? items[n + 1].created;
+    const prevChars = Array.from(prevText.trim().replaceAll(/\s+/gu, " "))
+    prevLink.textContent = prevChars.length > 28
+    ? "".concat(...prevChars.slice(0, 27), "…")
+    : prevText }
+  if (n < items.length - 1) {
+    nav.appendChild(document.createTextNode("; Next: "))
+    const nextLink = nav.appendChild(document.createElement("a"))
+    nextLink.href = items[n + 1]["@id"]
+    const nextText = (() => {
+      try {
+        const nextD = parser.parseFromString(items[n + 1].content, "application/xhtml+xml")
+        const div = document.createElement("div")
+        div.appendChild(document.importNode(nextD.documentElement, true))
+        Object.assign(div.style,
+          { position: "absolute"
+          , top: "-2px"
+          , height: "1px"
+          , width: "1px"
+          , overflow: "hidden" })
+        document.body.appendChild(div)
+        const text = div.innerText
+        document.body.removeChild(div)
+        return text }
+      catch { } })() ?? items[n + 1].created;
+    const nextChars = Array.from(nextText.trim().replaceAll(/\s+/gu, " "))
+    nextLink.textContent = nextChars.length > 28
+    ? "".concat(...nextChars.slice(0, 27), "…")
+    : nextText }
+  nav.appendChild(document.createTextNode("."))
+  document.body.replaceChildren(document.importNode(article, true), footer) })
+</SCRIPT>

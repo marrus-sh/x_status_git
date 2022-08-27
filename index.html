@@ -1,0 +1,68 @@
+<!dOcTyPe html>
+<HTML Lang=en>
+<TITLE>Index</TITLE>
+<STYLE>
+body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
+#status{ Font-Size: Larger }
+#topics{ Display: Grid; Margin-Block: 1REM; Grid: Auto-Flow / 1FR 1FR; Gap: 0 1REM }
+#topics h2{ Margin-Block-End: 0; Grid-Column: 1 / Span 2; Text-Align: Center }
+#topics h2:Last-Child{ Display: None }
+div.STATUS{ Border: Thin Solid; Padding-Inline: 1REM; Border-Radius: .5REM }
+footer{ Border-Block-Start: Thin Solid; Padding-Block: 1REM; Font-Size: Smaller; Text-Align: End }
+footer p{ Margin-Block: 0 .5REM }
+footer time:Not([datetime]),
+footer small{ Font-Size: Inherit; Font-Style: Italic }
+</STYLE>
+<H1>Index</H1>
+<DIV Class=STATUS ID=status>
+</DIV>
+<SECTION ID=topics>
+	<H2>Topics</H2>
+</SECTION>
+<SCRIPT Type=module>
+const parser = new DOMParser
+document.title = location.hostname
+document.documentElement.querySelector("body>h1").textContent = location.hostname
+const renderLatest = (path, container) => fetch(`${path}.jsonld`)
+.then($ => $.json())
+.then(meta => {
+  const { items } = meta
+  const status = items.pop()
+  const src = status.content
+  const { documentElement: article } = parser.parseFromString(src, "application/xhtml+xml")
+  const footer = document.createElement("footer")
+  const authorshipP = footer.appendChild(document.createElement("p"))
+  const { creator } = status
+  if (creator) {
+    const authorLink = authorshipP.appendChild(document.createElement("a"))
+    authorLink.href = creator["@id"]
+    authorLink.textContent = creator.name
+    authorshipP.appendChild(document.createTextNode(" @ ")) }
+  authorshipP.appendChild(document.createElement("time")).textContent = status.created
+  const nav = footer.appendChild(document.createElement("nav"))
+  const permalink = nav.appendChild(document.createElement("a"))
+  permalink.href = status["@id"]
+  permalink.textContent = "Permalink."
+  nav.appendChild(document.createTextNode(" "))
+  const upLink = nav.appendChild(document.createElement("a"))
+  upLink.href = meta["@id"]
+  upLink.textContent = `See more ${ status.subject ? `“${status.subject}” posts` : "statuses" }.`
+  container.replaceChildren(document.importNode(article, true), footer) })
+fetch("statuses.jsonld")
+.then($ => $.json())
+.then(meta => renderLatest(meta.current, document.getElementById("status")))
+fetch("topics.jsonld")
+.then($ => $.json())
+.then(meta => {
+  const topics = document.getElementById("topics")
+  for (const topicID of meta.items.map($ => $["@id"] ?? $)) {
+    const section = topics.appendChild(document.createElement("section"))
+    fetch(`${topicID}.jsonld`)
+    .then($ => $.json())
+    .then(topic => {
+      section.appendChild(document.createElement("h3")).textContent = topic.subject
+      const div = section.appendChild(document.createElement("div"))
+      div.className = "STATUS"
+      renderLatest(new URL(topic["@id"]).pathname, div)
+    }) } })
+</SCRIPT>

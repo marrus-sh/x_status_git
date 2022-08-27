@@ -1,0 +1,24 @@
+<!dOcTyPe html>
+<HTML Lang=en>
+<TITLE>Statuses</TITLE>
+<STYLE>
+body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
+</STYLE>
+<H1>Statuses</H1>
+<NAV><UL></UL></NAV>
+<SCRIPT Type=module>
+const ul = document.body.querySelector("nav>ul")
+fetch(`${location}.jsonld`)
+.then($ => $.json())
+.then(meta => {
+  { const a = ul
+    .appendChild(document.createElement("li"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.first
+    a.textContent = "First Page" }
+  { const a = ul
+    .appendChild(document.createElement("li"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.current
+    a.textContent = "Latest Page" } })
+</SCRIPT>

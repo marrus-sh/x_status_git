@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+from glob import iglob
+from itertools import starmap
+import json
+from os import mkdir
+from os.path import exists
+from pathlib import Path
+import re
+from shutil import copy2, rmtree
+from subprocess import run
+from sys import stdin
+from warnings import warn
+from xml.dom import XHTML_NAMESPACE
+from xml.dom.minidom import getDOMImplementation
+
+GIT_DIRECTORY = "/home/USERNAME/Status.git"
+BUILD_DIRECTORY = "/home/USERNAME/status.site.example/.build"
+PUBLIC_DIRECTORY = "/home/USERNAME/status.site.example/public"
+PUBLIC_URL = "https://status.site.example"
+LANG = "en"
+LIVE_BRANCH = "live"
+
+if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
+
+	print(f"This is an update to the '{LIVE_BRANCH}' branch; regenerating site…")
+
+	# Set up the build directory.
+	if exists(BUILD_DIRECTORY):
+		rmtree(BUILD_DIRECTORY)
+	run(["git", "clone", "--local", "--branch", "live", GIT_DIRECTORY, BUILD_DIRECTORY], capture_output=True, encoding="utf-8")
+
+	# Set up various containers.
+	months = {}
+	topics = {}
+
+	# Create an XML representation of the provided status text.
+	def statusxml (text, version="1.0"):
+		doc = getDOMImplementation().createDocument(None, "article", None)
+		articleElt = doc.documentElement
+		articleElt.setAttribute("xmlns", XHTML_NAMESPACE)
+		articleElt.setAttribute("lang", LANG)
+		for para in text.split("\n\n"):
+			paraElt = articleElt.appendChild(doc.createElement("p"))
+			for component in re.findall(r'<[a-z]+:[^\s]*>(?:="[^\n"]+")?|\n|[^<\n]+|<(?![a-z]+:[^\s]*>)', para):
+				if component == "\n":
+					paraElt.appendChild(doc.createElement("br"))
+				elif re.fullmatch(r'<[a-z]+:[^\s]*>(?:="[^\n"]+")?', component):
+					href = component.split(">", maxsplit=1)[0][1:]
+					anchorElt = paraElt.appendChild(doc.createElement("a"))
+					anchorElt.setAttribute("href", href)
+					anchorElt.setAttribute("rel", "noreferrer")
+					anchorElt.appendChild(doc.createTextNode(component if len(href) == len(component) - 2 else component[len(href)+4:-1]))
+				else:
+					paraElt.appendChild(doc.createTextNode(component))
+		return articleElt.toxml()
+
+	# Map status paths to status objects, or None if there is an error.
+	#
+	# The provided path must be to a `text` object.
+	def statusmap (topic, path):
+		status = { }
+		version_path = next(path.parent.glob("0=*"))
+		if version_path and version_path.name != "0=x_status_git_1.0":
+			warn(f"Unrecognized version for {path}; skipping.")
+			return None
+		if topic:
+			status["subject"] = topic
+		author_path = next(path.parent.glob("1=*"))
+		if author_path:
+			status["author"] = { "name": author_path.name[2:] }
+			with author_path.open("r", encoding="utf-8") as text:
+				status["author"]["@id"] = text.read().strip()
+		date_path = next(path.parent.glob("3=*"))
+		datetime = ""
+		if date_path:
+			with date_path.open("r", encoding="utf-8") as text:
+				datetime = text.read().strip()
+				status["created"] = datetime
+		else:
+			warn(f"Missing date for {path}; skipping.")
+			return None
+		identifier_path = next(path.parent.glob("4=*"))
+		identifier = ""
+		if identifier_path:
+			identifier = identifier_path.name[2:]
+			status["@id"] = f"{PUBLIC_URL}/topics/{topic}/{identifier}" if topic else f"{PUBLIC_URL}/{datetime[0:7]}/{identifier}"
+			with identifier_path.open("r", encoding="utf-8") as text:
+				status["identifier"] = text.read().strip()
+		else:
+			warn(f"Missing identifier for {path}; skipping.")
+			return None
+		with path.open("r", encoding="utf-8") as text:
+			status["content"] = statusxml(text.read().strip())
+		return (datetime, identifier, status)
+
+	# Get status paths.
+	status_paths = []
+	for yearpath in Path(f"{BUILD_DIRECTORY}/").glob("[0-9][0-9][0-9][0-9]"):
+		for monthpath in yearpath.glob("[0-9][0-9]"):
+			for daypath in monthpath.glob("[0-9][0-9]"):
+				for statuspath in daypath.glob("*/text"):
+					status_paths.append((None, statuspath))
+	for topicpath in Path(f"{BUILD_DIRECTORY}/").glob("topic/*"):
+		for hash0path in topicpath.glob("[0-9a-f]"):
+			for hash1path in hash0path.glob("[0-9a-f]"):
+				for hash2path in hash1path.glob("[0-9a-f]"):
+					for hash3path in hash2path.glob("[0-9a-f]"):
+						for statuspath in hash3path.glob("*/text"):
+							status_paths.append((topicpath.name, statuspath))
+
+	# Build status objects and listings.
+	for (datetime, identifier, status) in sorted(filter(None, starmap(statusmap, status_paths))):
+		if "subject" in status:
+			topic = status["subject"]
+			if topic not in topics:
+				topics[topic] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollection": "activity:OrderedCollection", "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "subject": "dct:subject", "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/topics/{topic}", "@type": "OrderedCollection", "items": [], "subject": topic }
+			topics[topic]["items"].append(status)
+		else:
+			yyyy_mm = datetime[0:7]
+			if yyyy_mm not in months:
+				months[yyyy_mm] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollectionPage": "activity:OrderedCollectionPage", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" }, "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "partOf": { "@id": "activity:partOf", "@type": "@id" }, "prev": { "@id": "activity:prev", "@type": "@id" }, "next": { "@id": "activity:next", "@type": "@id" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/{yyyy_mm}", "@type": "OrderedCollectionPage", "items": [], "partOf": f"{PUBLIC_URL}/statuses" }
+			months[yyyy_mm]["items"].append(status)
+
+	# Set up the public directory.
+	if exists(PUBLIC_DIRECTORY):
+		rmtree(PUBLIC_DIRECTORY)
+	mkdir(PUBLIC_DIRECTORY)
+
+	# Copy H·T·M·L files to their expected locations.
+	copy2(f"{BUILD_DIRECTORY}/index.html", f"{PUBLIC_DIRECTORY}/index.html")
+	copy2(f"{BUILD_DIRECTORY}/status.html", f"{PUBLIC_DIRECTORY}/.status.html")
+	copy2(f"{BUILD_DIRECTORY}/statuses.html", f"{PUBLIC_DIRECTORY}/.statuses.html")
+	copy2(f"{BUILD_DIRECTORY}/topic.html", f"{PUBLIC_DIRECTORY}/.topic.html")
+	copy2(f"{BUILD_DIRECTORY}/topics.html", f"{PUBLIC_DIRECTORY}/.topics.html")
+
+	# Output month‐based listings and the non‐topic index
+	statuspairs = list(enumerate(months.items()))
+	for (index, (yyyy_mm, ld)) in statuspairs:
+		if not exists(f"{PUBLIC_DIRECTORY}/{yyyy_mm}"):
+			mkdir(f"{PUBLIC_DIRECTORY}/{yyyy_mm}")
+		ld["first"] = f"{PUBLIC_URL}/{statuspairs[0][1][0]}"
+		ld["current"] = f"{PUBLIC_URL}/{statuspairs[-1][1][0]}"
+		if index > 0:
+			ld["prev"] = f"{PUBLIC_URL}/{statuspairs[index - 1][1][0]}"
+		if index < len(statuspairs) - 1:
+			ld["next"] = f"{PUBLIC_URL}/{statuspairs[index + 1][1][0]}"
+		with open(f"{PUBLIC_DIRECTORY}/{yyyy_mm}/index.jsonld", "w", encoding="utf-8") as f:
+			json.dump(ld, f, ensure_ascii=False, allow_nan=False)
+	if not exists(f"{PUBLIC_DIRECTORY}/statuses"):
+		mkdir(f"{PUBLIC_DIRECTORY}/statuses")
+	with open(f"{PUBLIC_DIRECTORY}/statuses/index.jsonld", "w", encoding="utf-8") as f:
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "OrderedCollection": "activity:OrderedCollection", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" } }, "@id": f"{PUBLIC_URL}/statuses", "@type": "OrderedCollection", "first": f"{PUBLIC_URL}/{statuspairs[0][1][0]}", "current": f"{PUBLIC_URL}/{statuspairs[-1][1][0]}" }, f, ensure_ascii=False, allow_nan=False)
+
+	# Output topic‐based listings and the topic index
+	if not exists(f"{PUBLIC_DIRECTORY}/topics"):
+		mkdir(f"{PUBLIC_DIRECTORY}/topics")
+	for (topic, ld) in topics.items():
+		if not exists(f"{PUBLIC_DIRECTORY}/topics/{topic}"):
+			mkdir(f"{PUBLIC_DIRECTORY}/topics/{topic}")
+		with open(f"{PUBLIC_DIRECTORY}/topics/{topic}/index.jsonld", "w", encoding="utf-8") as f:
+			json.dump(ld, f, ensure_ascii=False, allow_nan=False)
+	with open(f"{PUBLIC_DIRECTORY}/topics/index.jsonld", "w", encoding="utf-8") as f:
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "Collection": "activity:Collection", "items": { "@id": "activity:items", "@type": "@id" }, "subject": "dct:subject" }, "@id": f"{PUBLIC_URL}/topics", "@type": "Collection", "items": list(map(lambda a: { "@id": a["@id"], "subject": a["subject"] }, topics.values())) }, f, ensure_ascii=False, allow_nan=False)
+
+	# Remove the build directory.
+	rmtree(BUILD_DIRECTORY)
