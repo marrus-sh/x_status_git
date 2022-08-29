@@ -58,7 +58,7 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 	#
 	# The provided path must be to a `text` object.
 	def statusmap (topic, path):
-		status = { }
+		status = { "@type": "MicroblogPost" }
 		version_path = next(path.parent.glob("0=*"))
 		if version_path and version_path.name != "0=x_status_git_1.0":
 			warn(f"Unrecognized version for {path}; skipping.")
@@ -113,12 +113,12 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 		if "subject" in status:
 			topic = status["subject"]
 			if topic not in topics:
-				topics[topic] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollection": "activity:OrderedCollection", "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "subject": "dct:subject", "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/topics/{topic}", "@type": "OrderedCollection", "items": [], "subject": topic }
+				topics[topic] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "sioct": "http://rdfs.org/sioc/types#", "OrderedCollection": "activity:OrderedCollection", "Thread": "sioc:Thread", "MicroblogPost": "sioct:MicroblogPost", "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "subject": "dct:subject", "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/topics/{topic}", "@type": ["OrderedCollection", "Thread"], "items": [], "subject": topic }
 			topics[topic]["items"].append(status)
 		else:
 			yyyy_mm = datetime[0:7]
 			if yyyy_mm not in months:
-				months[yyyy_mm] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollectionPage": "activity:OrderedCollectionPage", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" }, "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "partOf": { "@id": "activity:partOf", "@type": "@id" }, "prev": { "@id": "activity:prev", "@type": "@id" }, "next": { "@id": "activity:next", "@type": "@id" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/{yyyy_mm}", "@type": "OrderedCollectionPage", "items": [], "partOf": f"{PUBLIC_URL}/statuses" }
+				months[yyyy_mm] = { "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "foaf": "http://xmlns.com/foaf/0.1/", "sioc": "http://rdfs.org/sioc/ns#", "sioct": "http://rdfs.org/sioc/types#", "OrderedCollectionPage": "activity:OrderedCollectionPage", "Thread": "sioc:Thread", "MicroblogPost": "sioct:MicroblogPost", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" }, "items": { "@id": "activity:items", "@type": "@id", "@container": "@list" }, "partOf": { "@id": "activity:partOf", "@type": "@id" }, "prev": { "@id": "activity:prev", "@type": "@id" }, "next": { "@id": "activity:next", "@type": "@id" }, "created": { "@id": "dct:created", "@type": "http://www.w3.org/2001/XMLSchema#dateTime" }, "creator": { "@id": "dct:creator", "@type": "@id" }, "identifier": { "@id":  "dct:identifier", "@type": "http://www.w3.org/2001/XMLSchema#anyURI" }, "name": "foaf:name", "content": { "@id": "sioc:content", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral" } }, "@id": f"{PUBLIC_URL}/{yyyy_mm}", "@type": ["OrderedCollectionPage", "Thread"], "items": [], "partOf": f"{PUBLIC_URL}/statuses" }
 			months[yyyy_mm]["items"].append(status)
 
 	# Set up the public directory.
@@ -149,7 +149,7 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 	if not exists(f"{PUBLIC_DIRECTORY}/statuses"):
 		mkdir(f"{PUBLIC_DIRECTORY}/statuses")
 	with open(f"{PUBLIC_DIRECTORY}/statuses/index.jsonld", "w", encoding="utf-8") as f:
-		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "OrderedCollection": "activity:OrderedCollection", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" } }, "@id": f"{PUBLIC_URL}/statuses", "@type": "OrderedCollection", "first": f"{PUBLIC_URL}/{statuspairs[0][1][0]}", "current": f"{PUBLIC_URL}/{statuspairs[-1][1][0]}" }, f, ensure_ascii=False, allow_nan=False)
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollection": "activity:OrderedCollection", "Thread": "sioc:Thread", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" } }, "@id": f"{PUBLIC_URL}/statuses", "@type": ["OrderedCollection", "Thread"], "first": f"{PUBLIC_URL}/{statuspairs[0][1][0]}", "current": f"{PUBLIC_URL}/{statuspairs[-1][1][0]}" }, f, ensure_ascii=False, allow_nan=False)
 
 	# Output topic‐based listings and the topic index
 	if not exists(f"{PUBLIC_DIRECTORY}/topics"):
@@ -160,7 +160,7 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 		with open(f"{PUBLIC_DIRECTORY}/topics/{topic}/index.jsonld", "w", encoding="utf-8") as f:
 			json.dump(ld, f, ensure_ascii=False, allow_nan=False)
 	with open(f"{PUBLIC_DIRECTORY}/topics/index.jsonld", "w", encoding="utf-8") as f:
-		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "Collection": "activity:Collection", "items": { "@id": "activity:items", "@type": "@id" }, "subject": "dct:subject" }, "@id": f"{PUBLIC_URL}/topics", "@type": "Collection", "items": list(map(lambda a: { "@id": a["@id"], "subject": a["subject"] }, topics.values())) }, f, ensure_ascii=False, allow_nan=False)
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "sioc": "http://rdfs.org/sioc/ns#", "Collection": "activity:Collection", "Forum": "sioc:Forum", "items": { "@id": "activity:items", "@type": "@id" }, "subject": "dct:subject" }, "@id": f"{PUBLIC_URL}/topics", "@type": ["Collection", "Forum"], "items": list(map(lambda a: { "@id": a["@id"], "subject": a["subject"] }, topics.values())) }, f, ensure_ascii=False, allow_nan=False)
 
 	# Remove the build directory.
 	rmtree(BUILD_DIRECTORY)

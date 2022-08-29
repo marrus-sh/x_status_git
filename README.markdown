@@ -227,40 +227,85 @@ The intention is that the simple nature of these files will make them
 
 ## I Am Computer, How Do I Get Status?
 
-Assume you are given a U·R·L to a status collection, like `/statuses`,
-  `/YYYY-MM`, or `/topics/my_topic`.
-Make a `HEAD` request to this U·R·L.
-If there is a `Link` header with a `rel` of `meta` and a `type` of
-  `application/ld+json`, make a `GET` request to that U·R·L instead.
-Otherwise, make a `GET` request to the U·R·L you were given.
+Assume you are given a U·R·L `resource_url` which you think points to
+  some kind of Status.git resource.
+Start by resolving it as follows :—
 
-Assuming the U·R·L you were given was valid, you will receive a
-  Json‐L·D response with a `@type` which is either an
-  `OrderedCollection` or an `OrderedCollectionPage`.
-One of the following will be true :—
+01. Make a `HEAD` request to `resource_url`.
 
- +  The response is an `OrderedCollectionPage`.
-    Its `items` will be an array of statuses, and the `prev` and
-      `next` properties will give U·R·Ls for previous and next
-      pages of statuses (if any exist).
+02. If there is a `Link` header with a `rel` of `meta` and a `type` of
+      `application/ld+json`, set `resource_url` to the URL provided in
+      that header and restart these steps from step 1.
 
- +  The response is an `OrderedCollection` with `first` and
-      `current` properties.
-    These properies give the U·R·Ls for the first and latest pages
-      of statuses, which you can fetch and process as above.
+03. Make a `GET` request to `resource_url` and let `response` be the
+      response.
 
- +  Otherwise, the `items` property will be an array of every
-      status in the collection.
+04. Set `document` as follows :—
 
- >  If you receive a `Collection` instead of an `OrderedCollection`,
- >    you are probably looking at a topics listing.
- >  You will need to choose a topic from the `items` and then fetch it
- >    to receive the list of statuses.
+    01. If the `Content-Type` header of `response` has a type of `text`
+          and subtype of `html`, let `document` be the result of
+          processing the body of `response` into a D·O·M tree as an
+          H·T·M·L document .
+        It is an error if this process fails.
+
+    02. If the `Content-Type` header of `response` has a type of
+          `application` and a subtype which is `xml` or which ends in
+          `+xml`, let `document` be the result of processing the body
+          of `response` into a D·O·M tree as an X·M·L document .
+        It is an error if this process fails.
+
+    03. Otherwise, let `document` be null.
+
+05. If `document` is not null :—
+
+    01. If there is a `<link>` element in either the H·T·M·L namespace
+          or the Atom namespace in `document` with a `rel` of `meta`
+          and a `type` of `application/ld+json`, set `resource_url` to
+          the `href` of that `<link>` element and restart these steps
+          from step 1.
+        If multiple such elements exist, choose the first one.
+
+    02. Otherwise, it is an error.
+
+06. If the body of `response` is not a Json document, it is an error.
+
+Assuming the U·R·L you were given was valid, you will end this
+  algorithm with a Json‐L·D response, and you can use the `@type`
+  attribute to determine the response type.
+`@type` will be either a string or an array.
+
+ +  If the `@type` is or contains `Forum`, the resource is a collection
+      of topics.
+
+ +  If the `@type` is or contains `Thread`, the resource is a
+      collection of statuses.
+
+The items in the collection may be determined through one of the
+  following methods :—
+
+ +  If the `@type` is or contains `OrderedCollectionPage`, then its
+      `items` will be an array of resources.
+    This is a partial collection, and the `prev` and `next` properties
+      can be used to access further items from the parent collection
+      (indicated by `partOf`).
+
+ +  If the `@type` is or contains `OrderedCollection`, and the resource
+      has `first` and `current` properties, then the `items` property
+      will not be present.
+    `first` and `current` can be accessed to provide
+      `OrderedCollectionPage`s listing the items of the collection as
+      above.
+
+ +  Otherwise, the `items` property will contain every item in the
+      collection.
 
 Statuses themselves have the following properties :—
 
  +  **`@id`**:
     The identifier of the status.
+
+ +  **`@type`**:
+    The value `MicroblogPost`.
 
  +  **`created`** [`dcterms:created`]:
     The creation date for the status, as an `xsd:dateTime`.
