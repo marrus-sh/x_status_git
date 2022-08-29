@@ -81,6 +81,15 @@ Note that these paths **do not** have a trailing slash.
 
  +  **`GET /`**:
     Serve the file at `/index.html`.
+    A `Link` header with the value
+      `</about.jsonld>;rel=meta;type="application/ld+json"` (or
+      equivalent) **must** be provided.
+
+ +  **`GET /about`**:
+    Serve the file at `/.about.html`.
+    A `Link` header with the value
+      `</about.jsonld>;rel=meta;type="application/ld+json"` (or
+      equivalent) **must** be provided.
 
  +  **`GET /statuses`**:
     Serve the file at `/.statuses.html`.
@@ -125,6 +134,9 @@ These responses **should** be served with a `Content-Type` of
   `application/ld+json`.
 In all cases, for `/$PATH.jsonld`, this just serves the file at
   `/$PATH/index.jsonld`.
+
+ +  **`GET /about.jsonld`**:
+    Serve the file at `/about/index.jsonld`.
 
  +  **`GET /statuses.jsonld`**:
     Serve the file at `/statuses/index.jsonld`.
@@ -280,21 +292,27 @@ Assuming the U·R·L you were given was valid, you will end this
  +  If the `@type` is or contains `Thread`, the resource is a
       collection of statuses.
 
-The items in the collection may be determined through one of the
-  following methods :—
+ +  If the `@type` is or contains `Microblog`, the resource describes
+      this site as a whole.
+    The `streams` property will contain a list of available `Forum`s
+      and `Thread`s, as objects with an `@id` and `@type`.
 
- +  If the `@type` is or contains `OrderedCollectionPage`, then its
-      `items` will be an array of resources.
+The items in the collection (`Forum` or `Thread`) may be determined
+  through one of the following methods :—
+
+ +  If the `@type` is or contains `CollectionPage` or
+      `OrderedCollectionPage`, then its `items` will contain resources.
     This is a partial collection, and the `prev` and `next` properties
       can be used to access further items from the parent collection
       (indicated by `partOf`).
+    `first` and `current`, in this scenario, point “horizontally” to
+      the first and latest pages of items, not to subpages.
 
- +  If the `@type` is or contains `OrderedCollection`, and the resource
-      has `first` and `current` properties, then the `items` property
-      will not be present.
+ +  If the `@type` is or contains `Collection` or `OrderedCollection`
+      and the resource has `first` and/or `current` properties, then
+      the `items` property will not be present.
     `first` and `current` can be accessed to provide
-      `OrderedCollectionPage`s listing the items of the collection as
-      above.
+      `OrderedCollectionPage`s listing the items of the collection.
 
  +  Otherwise, the `items` property will contain every item in the
       collection.

@@ -1,0 +1,26 @@
+<!dOcTyPe html>
+<HTML Lang=en>
+<TITLE>About</TITLE>
+<STYLE>
+body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
+</STYLE>
+<H1>About</H1>
+<NAV><UL></UL></NAV>
+<SCRIPT Type=module>
+document.title = location.hostname
+document.body.querySelector("h1").textContent = location.hostname
+const ul = document.body.querySelector("nav>ul")
+fetch(`${location}.jsonld`)
+.then($ => $.json())
+.then(meta => {
+  { const a = ul
+    .appendChild(document.createElement("li"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.streams.find($ => $["@type"] == "Thread")["@id"]
+    a.textContent = "Updates" }
+  { const a = ul
+    .appendChild(document.createElement("li"))
+    .appendChild(document.createElement("a"))
+    a.href = meta.streams.find($ => $["@type"] == "Forum")["@id"]
+    a.textContent = "Topics" } })
+</SCRIPT>

@@ -128,10 +128,17 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 
 	# Copy H·T·M·L files to their expected locations.
 	copy2(f"{BUILD_DIRECTORY}/index.html", f"{PUBLIC_DIRECTORY}/index.html")
+	copy2(f"{BUILD_DIRECTORY}/about.html", f"{PUBLIC_DIRECTORY}/.about.html")
 	copy2(f"{BUILD_DIRECTORY}/status.html", f"{PUBLIC_DIRECTORY}/.status.html")
 	copy2(f"{BUILD_DIRECTORY}/statuses.html", f"{PUBLIC_DIRECTORY}/.statuses.html")
 	copy2(f"{BUILD_DIRECTORY}/topic.html", f"{PUBLIC_DIRECTORY}/.topic.html")
 	copy2(f"{BUILD_DIRECTORY}/topics.html", f"{PUBLIC_DIRECTORY}/.topics.html")
+
+	# Output “about” metadata
+	if not exists(f"{PUBLIC_DIRECTORY}/about"):
+		mkdir(f"{PUBLIC_DIRECTORY}/about")
+	with open(f"{PUBLIC_DIRECTORY}/about/index.jsonld", "w", encoding="utf-8") as f:
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "sioc": "http://rdfs.org/sioc/ns#", "sioct": "http://rdfs.org/sioc/types#", "Forum": "sioc:Forum", "Thread": "sioc:Thread", "Microblog": "sioct:Microblog", "streams": { "@id": "activity:streams", "@type": "@id" } }, "@id": f"{PUBLIC_URL}", "@type": "Microblog", "streams": [{ "@id": f"{PUBLIC_URL}/statuses", "@type": "Thread" }, { "@id": f"{PUBLIC_URL}/topics", "@type": "Forum" }] }, f, ensure_ascii=False, allow_nan=False)
 
 	# Output month‐based listings and the non‐topic index
 	statuspairs = list(enumerate(months.items()))
@@ -149,7 +156,7 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 	if not exists(f"{PUBLIC_DIRECTORY}/statuses"):
 		mkdir(f"{PUBLIC_DIRECTORY}/statuses")
 	with open(f"{PUBLIC_DIRECTORY}/statuses/index.jsonld", "w", encoding="utf-8") as f:
-		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollection": "activity:OrderedCollection", "Thread": "sioc:Thread", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" } }, "@id": f"{PUBLIC_URL}/statuses", "@type": ["OrderedCollection", "Thread"], "first": f"{PUBLIC_URL}/{statuspairs[0][1][0]}", "current": f"{PUBLIC_URL}/{statuspairs[-1][1][0]}" }, f, ensure_ascii=False, allow_nan=False)
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "sioc": "http://rdfs.org/sioc/ns#", "OrderedCollection": "activity:OrderedCollection", "Thread": "sioc:Thread", "current": { "@id": "activity:current", "@type": "@id" }, "first": { "@id": "activity:first", "@type": "@id" }, "has_parent": { "@id": "sioc:has_parent", "@type": "id" } }, "@id": f"{PUBLIC_URL}/statuses", "@type": ["OrderedCollection", "Thread"], "first": f"{PUBLIC_URL}/{statuspairs[0][1][0]}", "current": f"{PUBLIC_URL}/{statuspairs[-1][1][0]}", "has_parent": f"{PUBLIC_URL}" }, f, ensure_ascii=False, allow_nan=False)
 
 	# Output topic‐based listings and the topic index
 	if not exists(f"{PUBLIC_DIRECTORY}/topics"):
@@ -160,7 +167,7 @@ if stdin.read().split()[-1] == f"refs/heads/{LIVE_BRANCH}":
 		with open(f"{PUBLIC_DIRECTORY}/topics/{topic}/index.jsonld", "w", encoding="utf-8") as f:
 			json.dump(ld, f, ensure_ascii=False, allow_nan=False)
 	with open(f"{PUBLIC_DIRECTORY}/topics/index.jsonld", "w", encoding="utf-8") as f:
-		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "sioc": "http://rdfs.org/sioc/ns#", "Collection": "activity:Collection", "Forum": "sioc:Forum", "items": { "@id": "activity:items", "@type": "@id" }, "subject": "dct:subject" }, "@id": f"{PUBLIC_URL}/topics", "@type": ["Collection", "Forum"], "items": list(map(lambda a: { "@id": a["@id"], "subject": a["subject"] }, topics.values())) }, f, ensure_ascii=False, allow_nan=False)
+		json.dump({ "@context": { "@language": LANG, "activity": "https://www.w3.org/ns/activitystreams#", "dct": "http://purl.org/dc/terms/", "sioc": "http://rdfs.org/sioc/ns#", "Collection": "activity:Collection", "Forum": "sioc:Forum", "items": { "@id": "activity:items", "@type": "@id" }, "has_parent": { "@id": "sioc:has_parent", "@type": "id" }, "subject": "dct:subject" }, "@id": f"{PUBLIC_URL}/topics", "@type": ["Collection", "Forum"], "items": list(map(lambda a: { "@id": a["@id"], "subject": a["subject"] }, topics.values())), "has_parent": f"{PUBLIC_URL}" }, f, ensure_ascii=False, allow_nan=False)
 
 	# Remove the build directory.
 	rmtree(BUILD_DIRECTORY)
