@@ -18,20 +18,21 @@ fetch(`${location}.jsonld`)
   document.body.querySelector("h1").textContent = "subject" in meta
   ? `#${topic}`
   : `@${topic}`
-  if (meta.first != location) {
+  const { first, prev, next, current, items } = meta
+  if (first && first != location && first != prev) {
     const a = nav
     .insertBefore(document.createElement("p"), dl)
     .appendChild(document.createElement("a"))
-    a.href = meta.first
+    a.href = first
     a.textContent = "First Page" }
-  if (meta.prev && meta.prev != meta.first) {
+  if (prev) {
     const a = nav
     .insertBefore(document.createElement("p"), dl)
     .appendChild(document.createElement("a"))
-    a.href = meta.prev
+    a.href = prev
     a.textContent = "Previous Page" }
   let prevDate = undefined
-  for (const status of meta.items) {
+  for (const status of items) {
     if (status.created != prevDate) dl.appendChild(document.createElement("dt")).textContent = status.created
     const a = dl
     .appendChild(document.createElement("dd"))
@@ -57,16 +58,16 @@ fetch(`${location}.jsonld`)
     a.textContent = chars.length > 28
     ? "".concat(...chars.slice(0, 27), "…")
     : summaryText || status.identifier }
-  if (meta.next && meta.next != meta.current) {
+  if (next) {
     const a = nav
     .appendChild(document.createElement("p"))
     .appendChild(document.createElement("a"))
-    a.href = meta.next
+    a.href = next
     a.textContent = "Next Page" }
-  if (meta.current != location) {
+  if (current && current != location && current != next) {
     const a = nav
     .appendChild(document.createElement("p"))
     .appendChild(document.createElement("a"))
-    a.href = meta.current
+    a.href = current
     a.textContent = "Latest Page" } })
 </SCRIPT>
