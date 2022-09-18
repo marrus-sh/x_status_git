@@ -1,0 +1,131 @@
+status.site.example {
+	root * /home/USERNAME/status.site.example/public
+
+	@slash {
+		path_regexp slash /$
+	}
+
+	@jsonld {
+		path_regexp jsonld \.jsonld$
+	}
+
+	@bare {
+		not path_regexp /$
+		not path_regexp \.jsonld$
+	}
+
+	@empty {
+		expression {re.matcher.suffix} == ""
+	}
+
+	handle /about {
+		rewrite * /.about.html
+		header Link </about.jsonld>;rel=meta;type="application/ld+json"
+	}
+
+	redir /about/ /about
+
+	rewrite /about.jsonld /about/index.jsonld
+
+	handle /statuses {
+		rewrite * /.statuses.html
+		header Link </statuses.jsonld>;rel=meta;type="application/ld+json"
+	}
+
+	@statusroot {
+		path_regexp matcher ^/statuses/(?P<path>.*)
+		not path_regexp ^/statuses/index\.
+	}
+
+	handle @statusroot {
+		handle /statuses/ {
+			redir * /statuses
+		}
+
+		handle {
+			redir * /{re.matcher.path}
+		}
+	}
+
+	rewrite /statuses.jsonld /statuses/index.jsonld
+
+	@dated {
+		path_regexp matcher ^/(?P<ym>\d{4}-\d{2})(?P<suffix>/[^/.]+)?(?:\..*|/)?$
+	}
+
+	handle @dated {
+		handle @empty {
+			handle @bare {
+				rewrite * /.topic.html
+				header Link </{re.matcher.ym}.jsonld>;rel=meta;type="application/ld+json"
+			}
+
+			handle @slash {
+				redir * /{re.matcher.ym}
+			}
+
+			handle @jsonld {
+				rewrite * /{re.matcher.ym}/index.jsonld
+			}
+		}
+
+		handle {
+			handle @bare {
+				rewrite * /.status.html
+				header Link </{re.matcher.ym}.jsonld>;rel=meta;type="application/ld+json"
+			}
+
+			handle @slash {
+				redir * /{re.matcher.ym}{re.matcher.suffix}
+			}
+		}
+	}
+
+	handle /topics {
+		rewrite * /.topics.html
+		header Link </topics.jsonld>;rel=meta;type="application/ld+json"
+	}
+
+	redir /topics/ /topics
+
+	rewrite /topics.jsonld /topics/index.jsonld
+
+	@topics {
+		path_regexp matcher ^/(?:topics/(?P<topic>[0-9A-Za-z_-]+))(?P<suffix>/[^/.]+)?(?:\..*|/)?$
+		not path_regexp ^/topics/index[/.]?
+	}
+
+	handle @topics {
+		handle @empty {
+			handle @bare {
+				rewrite * /.topic.html
+				header Link </topics/{re.matcher.topic}.jsonld>;rel=meta;type="application/ld+json"
+			}
+
+			handle @slash {
+				redir * /topics/{re.matcher.topic}
+			}
+
+			handle @jsonld {
+				rewrite * /topics/{re.matcher.topic}/index.jsonld
+			}
+		}
+
+		handle {
+			handle @bare {
+				rewrite * /.status.html
+				header Link </topics/{re.matcher.topic}.jsonld>;rel=meta;type="application/ld+json"
+			}
+
+			handle @slash {
+				redir * /topics/{re.matcher.topic}{re.matcher.suffix}
+			}
+		}
+	}
+
+	header Access-Control-Allow-Origin "*"
+
+	file_server {
+		index index.xml index.xhtml index.html index.rdf index.txt
+	}
+}

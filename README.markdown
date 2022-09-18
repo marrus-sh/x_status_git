@@ -71,7 +71,9 @@ You’ll need to supply some variables there, too :—
 ## Server Configuration
 
 Your server should be configured to serve the following files from the
-  provided `PUBLIC_DIRECTORY` in response to the following requests :—
+  provided `PUBLIC_DIRECTORY` in response to the following requests.
+For people using Caddy to serve their content, a sample `Caddyfile` is
+  included in this repository.
 
 ### H·T·M·L responses
 
