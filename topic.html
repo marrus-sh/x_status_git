@@ -5,11 +5,17 @@
 body{ Display: Grid; Box-Sizing: Border-Box; Margin: Auto; Padding-Inline: 1REM; Min-Block-Size: 100VH; Inline-Size: 100%; Max-Inline-Size: 45REM; Align-Content: Center; Justify-Content: Stretch; Font-Family: Sans-Serif }
 </STYLE>
 <H1>Topic Feed</H1>
-<NAV><DL></DL></NAV>
+<NAV><P><A HRef=/>Home</A></P><DL></DL></NAV>
 <SCRIPT Type=module>
 const nav = document.body.querySelector("nav")
 const dl = nav.querySelector("dl")
 const parser = new DOMParser
+if (location.pathname.startsWith("/topics/")) {
+  const a = nav
+  .insertBefore(document.createElement("p"), dl)
+  .appendChild(document.createElement("a"))
+  a.href = "/topics/"
+  a.textContent = "Topics" }
 fetch(`${location}.jsonld`)
 .then($ => $.json())
 .then(meta => {
